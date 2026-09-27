@@ -1,0 +1,2 @@
+const button=document.querySelector('#copy-setup'),request=document.querySelector('#setup-request'),status=document.querySelector('#copy-status');
+button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(request.value);status.textContent='Copied. Paste this into your website’s Codex chat.';}catch{request.closest('details').open=true;request.focus();request.select();status.textContent='Select and copy the request below, then paste it into your website’s Codex chat.';}});
