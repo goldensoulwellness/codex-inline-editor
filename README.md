@@ -1,4 +1,4 @@
-# Codex in-line Editor
+# Codex In-Line Text Editor
 
 Public setup and privacy documentation. Published by Harrison Connery.
 
