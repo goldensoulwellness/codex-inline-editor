@@ -1,9 +1,11 @@
 import SwiftUI
 import WebKit
 
-// The list lives in the Claude page (it saves edits there), so the app opens that page full screen
-// and keeps you signed in between launches.
-private let appURL = URL(string: "https://claude.ai/artifact/2hbUZtzrw6KDoWYqgdsRVn")!
+// The list is a normal webpage (video-ideas-delta.vercel.app) with its own storage, so there is no sign-in.
+// Secrets.swift (not in git) holds the private link; copy Secrets.swift.example to make it.
+private let appURL = URL(string: Secrets.listURL)!
+// Same page without the key part (the page already saved the key), so "Try again" is a real reload.
+private let retryURL = Secrets.listURL.components(separatedBy: "#").first ?? Secrets.listURL
 
 @main
 struct VideoIdeasApp: App {
@@ -21,11 +23,9 @@ struct WebScreen: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()          // remembers the Claude sign-in
+        config.websiteDataStore = .default()          // keeps the private key and a copy of the list
         config.allowsInlineMediaPlayback = true
         let web = WKWebView(frame: .zero, configuration: config)
-        // Look like Safari so Google sign-in is allowed inside the app.
-        web.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
         web.allowsBackForwardNavigationGestures = true
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator
@@ -41,7 +41,7 @@ struct WebScreen: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         weak var web: WKWebView?
 
-        // Sign-in pop-ups open in the same screen instead of being dropped.
+        // Links that open a new window load in the same screen instead of being dropped.
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             if navigationAction.targetFrame == nil { webView.load(navigationAction.request) }
@@ -56,9 +56,9 @@ struct WebScreen: UIViewRepresentable {
             let html = """
             <html><head><meta name=viewport content="width=device-width,initial-scale=1"></head>
             <body style="background:#100e24;color:#eeecfb;font:18px -apple-system;display:grid;place-items:center;height:90vh;text-align:center;padding:24px">
-            <div><h2>Can't reach your list</h2><p>Check your internet, then tap below.</p><p><a href="https://claude.ai/artifact/2hbUZtzrw6KDoWYqgdsRVn" style="display:inline-block;background:#9d87ff;color:#120f2b;padding:14px 24px;border-radius:999px;text-decoration:none;font-weight:600">Try again</a></p></div></body></html>
+            <div><h2>Can't reach your list</h2><p>Check your internet, then tap below.</p><p><a href="\(retryURL)" style="display:inline-block;background:#9d87ff;color:#120f2b;padding:14px 24px;border-radius:999px;text-decoration:none;font-weight:600">Try again</a></p></div></body></html>
             """
-            webView.loadHTMLString(html, baseURL: appURL)
+            webView.loadHTMLString(html, baseURL: nil)
         }
     }
 }
