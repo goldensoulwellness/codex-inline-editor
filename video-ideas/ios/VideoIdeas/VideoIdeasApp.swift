@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import Photos
 
 // The list is a normal webpage (video-ideas-delta.vercel.app) with its own storage, so there is no sign-in.
 // Secrets.swift (not in git) holds the private link; copy Secrets.swift.example to make it.
@@ -25,6 +26,8 @@ struct WebScreen: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()          // keeps the private key and a copy of the list
         config.allowsInlineMediaPlayback = true
+        // The page calls this to put a finished set of story pictures into Photos.
+        config.userContentController.add(context.coordinator, name: "savePhotos")
         let web = WKWebView(frame: .zero, configuration: config)
         web.allowsBackForwardNavigationGestures = true
         web.navigationDelegate = context.coordinator
@@ -38,8 +41,38 @@ struct WebScreen: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         weak var web: WKWebView?
+
+        // {key, urls}: download each picture with the private key, then add them all to Photos in order.
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "savePhotos", let body = message.body as? [String: Any],
+                  let key = body["key"] as? String, let urls = body["urls"] as? [String], !urls.isEmpty else { return }
+            Task { @MainActor in
+                let saved = await Self.save(urls: urls, key: key)
+                _ = try? await self.web?.evaluateJavaScript("window.savedToPhotos && window.savedToPhotos(\(saved > 0), \(saved))")
+            }
+        }
+
+        private static func save(urls: [String], key: String) async -> Int {
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            guard status == .authorized || status == .limited else { return 0 }
+            var pictures: [Data] = []
+            for string in urls {
+                guard let url = URL(string: string) else { continue }
+                var request = URLRequest(url: url)
+                request.setValue(key, forHTTPHeaderField: "x-key")
+                if let (data, response) = try? await URLSession.shared.data(for: request),
+                   (response as? HTTPURLResponse)?.statusCode == 200 { pictures.append(data) }
+            }
+            guard !pictures.isEmpty else { return 0 }
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    for data in pictures { PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil) }
+                }
+                return pictures.count
+            } catch { return 0 }
+        }
 
         // Links that open a new window load in the same screen instead of being dropped.
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,

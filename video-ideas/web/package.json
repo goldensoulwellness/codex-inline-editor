@@ -2,5 +2,8 @@
   "name": "video-ideas",
   "private": true,
   "type": "module",
-  "dependencies": { "@vercel/blob": "2.9.0" }
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.7.0",
+    "@vercel/blob": "2.9.0"
+  }
 }

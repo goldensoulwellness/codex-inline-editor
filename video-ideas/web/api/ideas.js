@@ -1,27 +1,10 @@
-// Video Ideas storage: one private Vercel Blob file holding the whole list.
+// Video Ideas storage.
 // GET  -> the list (array of ideas)
 // POST {op: "create"|"update"|"remove", id, data} -> applies one change
 // Every request needs the private key in the "x-key" header.
-import { get, put } from "@vercel/blob";
-import { timingSafeEqual } from "node:crypto";
+import { keyOk, body, loadAll, mutate, okId } from "../lib/store.js";
 
-const PATH = "ideas.json";
 const MAX_BODY = 200_000;
-
-function keyOk(req) {
-  const want = process.env.VIDEO_IDEAS_KEY || "";
-  const got = String(req.headers["x-key"] || "");
-  if (!want || got.length !== want.length) return false;
-  return timingSafeEqual(Buffer.from(got), Buffer.from(want));
-}
-
-async function load() {
-  const res = await get(PATH, { access: "private", useCache: false });
-  if (!res) return { rows: [], etag: null };
-  const text = await new Response(res.stream).text();
-  // get() returns a weak ETag ("W/...") that ifMatch rejects; writes need the strong one.
-  return { rows: JSON.parse(text || "[]"), etag: String(res.blob.etag || "").replace(/^W\//, "") || null };
-}
 
 function apply(rows, op, id, data) {
   if (op === "create") {
@@ -38,37 +21,20 @@ export default async function handler(req, res) {
   if (!keyOk(req)) return res.status(401).json({ error: "locked" });
 
   if (req.method === "GET") {
-    const { rows } = await load();
+    const { rows } = await loadAll();
     return res.status(200).json(rows);
   }
 
   if (req.method === "POST") {
-    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
-    const { op, id, data } = body;
-    if (!["create", "update", "remove"].includes(op) || typeof id !== "string" || !/^[\w.:-]{1,200}$/.test(id)) {
-      return res.status(400).json({ error: "bad request" });
-    }
+    const { op, id, data } = body(req);
+    if (!["create", "update", "remove"].includes(op) || !okId(id)) return res.status(400).json({ error: "bad request" });
     if (JSON.stringify(data || {}).length > MAX_BODY) return res.status(413).json({ error: "too big" });
-
-    // Read, change, write only if nobody else wrote in between; retry a few times.
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const { rows, etag } = await load();
-      const next = apply(rows, op, id, data || {});
-      try {
-        await put(PATH, JSON.stringify(next), {
-          access: "private",
-          contentType: "application/json",
-          addRandomSuffix: false,
-          allowOverwrite: true,
-          cacheControlMaxAge: 60,
-          ...(etag ? { ifMatch: etag } : {}),
-        });
-        return res.status(200).json({ ok: true });
-      } catch (err) {
-        if (attempt === 3) throw err;
-        await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
-      }
-    }
+    // Questions and pictures are written only by their own endpoints.
+    const clean = { ...(data || {}) };
+    delete clean.qa;
+    delete clean.pics;
+    await mutate((rows) => apply(rows, op, id, clean));
+    return res.status(200).json({ ok: true });
   }
 
   res.setHeader("Allow", "GET, POST");

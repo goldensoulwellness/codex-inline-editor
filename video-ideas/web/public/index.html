@@ -128,6 +128,24 @@ button{cursor:pointer}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:40;
   background:var(--fg);color:var(--bg);border-radius:999px;padding:10px 16px;font-weight:600;font-size:.9rem;display:flex;gap:12px;align-items:center;max-width:calc(100% - 32px)}
 #toast button{all:unset;cursor:pointer;text-decoration:underline}
+.sec .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.status{margin:4px 0 0;color:var(--muted)}
+.status.bad,.qa .a.bad{color:var(--bad)}
+.busy{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.busy{animation:none}}
+.pics{display:grid;grid-auto-flow:column;grid-auto-columns:132px;gap:10px;overflow-x:auto;padding:6px 2px 8px;margin-top:8px;scroll-snap-type:x mandatory}
+.pics figure{margin:0;scroll-snap-align:start}
+.pics img{display:block;width:132px;aspect-ratio:9/16;object-fit:cover;border-radius:12px;background:var(--sunk);border:1px solid var(--line)}
+.pics figcaption{font-size:.8rem;color:var(--muted);margin-top:4px;line-height:1.3}
+.qa{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:12px}
+.qa li{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.qa .q{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.qa .q b{font-weight:600}
+.qa .x{all:unset;cursor:pointer;color:var(--muted);padding:0 4px;font-size:1.2rem;line-height:1}
+.qa .a{margin:8px 0 0;white-space:pre-wrap;line-height:1.5}
+.askrow{display:flex;gap:8px;align-items:flex-end}
+.askbox{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 12px;resize:none;min-height:46px;font-size:16px}
 [hidden]{display:none !important}
 
 @media (min-width:960px){
@@ -467,12 +485,13 @@ function renderDetail(){
       h("h3", null, [h("span", {text:"Notes"})]),
       field(it, "notes", "notes", "Notes", "Filming notes, b-roll, caption ideas, links…")
     ]),
+    picsSection(it),
     h("div", {class:"actions"}, [
       h("button", {class:"btn primary", type:"button", text: it.posted ? "Move back to To film" : "Mark as posted", onclick:function(){ setPosted(it.id, !it.posted); }}),
       h("button", {class:"btn", type:"button", text:"Copy outline", onclick:function(){ copyOutline(it.id); }}),
       del
     ]),
-    h("p", {class:"hint", text:"Tap any text to edit. Press Enter in a hook or point to add the next one. Drag the number or dot to reorder."})
+    askSection(it)
   ]);
   box.appendChild(h("div", {class:"dhead"}, [
     h("button", {class:"btn back", type:"button", text:"‹ All ideas", onclick:closeIdea}),
@@ -495,6 +514,122 @@ window.addEventListener("popstate", function(e){
   if (id && ideas.has(id)){ flushAll(); selected = id; renderList(); renderDetail(); }
   else if (selected) showList();
 });
+
+/* ---------- story pictures (made on the Mac with Codex, saved to the iPhone) ---------- */
+var picURLs = {}, IN_APP = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.savePhotos);
+function api(path, payload){
+  return fetch(path, {method:"POST", headers:{"x-key":KEY, "Content-Type":"application/json"}, body: JSON.stringify(payload)})
+    .then(function(r){ if (!r.ok) throw new Error("http " + r.status); return r.json(); });
+}
+function setIdea(id, patch){ var cur = ideas.get(id); if (!cur) return; ideas.set(id, Object.assign({}, cur, patch)); if (id === selected) renderDetailKeep(); }
+function renderDetailKeep(){ var box = $("detail"), top = box.scrollTop; renderDetail(); box.scrollTop = top; }
+function picImg(path, label){
+  var img = h("img", {alt: label || "Story picture", loading:"lazy"});
+  if (picURLs[path]) img.src = picURLs[path];
+  else fetch("/api/pic?path=" + encodeURIComponent(path), {headers:{"x-key":KEY}}).then(function(r){ return r.ok ? r.blob() : null; })
+    .then(function(b){ if (b){ picURLs[path] = URL.createObjectURL(b); img.src = picURLs[path]; } }).catch(function(){});
+  return img;
+}
+function picsSection(it){
+  var p = it.pics || null, items = (p && p.items) || [], ready = items.filter(function(x){ return x.path; });
+  var kids = [h("h3", null, [h("span", {text:"Story pictures"})])];
+  var status = null, buttons = [];
+  var make = function(){ requestPics(it.id); };
+  if (!p) {
+    buttons.push(h("button", {class:"btn primary", type:"button", text:"Make story pictures", onclick: make}));
+  } else if (p.status === "planning") status = "Planning the pictures for this video…";
+  else if (p.status === "queued") status = "Waiting for your Mac to make " + items.length + " pictures…";
+  else if (p.status === "making") status = "Your Mac is making the pictures: " + ready.length + " of " + items.length + " ready";
+  else if (p.status === "failed") { status = p.error || "Couldn't make the pictures."; buttons.push(h("button", {class:"btn primary", type:"button", text:"Try again", onclick:function(){ api("/api/pics", {id: it.id, action:"clear"}).then(make, make); }})); }
+  else if (p.status === "done") {
+    buttons.push(h("button", {class:"btn primary", type:"button", text: IN_APP ? "Save to Photos" : "Save pictures", onclick:function(){ savePics(it.id, true); }}));
+    buttons.push(h("button", {class:"btn quiet", type:"button", text:"Make a new set", onclick:function(){
+      api("/api/pics", {id: it.id, action:"clear"}).then(make, function(){ toast("Couldn't start a new set. Try again."); }); }}));
+  }
+  if (status) kids.push(h("p", {class:"status" + (p.status === "failed" ? " bad" : " busy"), text: status}));
+  if (ready.length) kids.push(h("div", {class:"pics"}, ready.map(function(x){ return h("figure", null, [picImg(x.path, x.label), h("figcaption", {text: x.label})]); })));
+  if (buttons.length) kids.push(h("div", {class:"row"}, buttons));
+  return h("section", {class:"sec"}, kids);
+}
+function requestPics(id){
+  setIdea(id, {pics: {status:"planning"}});
+  api("/api/pics", {id: id, action:"request"}).then(function(r){ setIdea(id, {pics: r.pics}); soon(); },
+    function(){ setIdea(id, {pics: null}); toast("Couldn't start the pictures. Check your connection and try again."); });
+}
+function savedKey(it){ return "saved-pics:" + it.id + ":" + (it.pics && it.pics.doneAt); }
+function savePics(id, manual){
+  var it = ideas.get(id); if (!it || !it.pics) return;
+  var paths = (it.pics.items || []).filter(function(x){ return x.path; }).map(function(x){ return x.path; });
+  if (!paths.length) return;
+  if (IN_APP){
+    // The iPhone app downloads them with the private key and adds them to Photos.
+    window.webkit.messageHandlers.savePhotos.postMessage({key: KEY, title: it.title || "", urls: paths.map(function(p){ return location.origin + "/api/pic?path=" + encodeURIComponent(p); })});
+    try { localStorage.setItem(savedKey(it), "1"); } catch(e){}
+    if (manual) toast("Saving " + paths.length + " pictures to Photos…");
+    return;
+  }
+  Promise.all(paths.map(function(p, n){ return fetch("/api/pic?path=" + encodeURIComponent(p), {headers:{"x-key":KEY}}).then(function(r){ return r.blob(); })
+    .then(function(b){ return new File([b], (it.title || "story").replace(/[^\w -]+/g, "").slice(0, 40) + " " + (n + 1) + ".jpg", {type:"image/jpeg"}); }); }))
+    .then(function(files){
+      if (navigator.canShare && navigator.canShare({files: files})) return navigator.share({files: files}).catch(function(){});
+      files.forEach(function(f){ var a = h("a", {href: URL.createObjectURL(f), download: f.name}); document.body.appendChild(a); a.click(); a.remove(); });
+    }).catch(function(){ toast("Couldn't get the pictures. Try again."); });
+}
+// Called by the iPhone app when it finishes saving.
+window.savedToPhotos = function(ok, count){ toast(ok ? "Saved " + count + " pictures to Photos" : "Couldn't save to Photos. Allow Photos access in Settings, then try again."); };
+// In the iPhone app, a finished set is saved to Photos automatically, once.
+function autoSave(){
+  if (!IN_APP) return;
+  ideas.forEach(function(it){
+    if (it.pics && it.pics.status === "done" && it.pics.doneAt){
+      var k = savedKey(it), seen = null; try { seen = localStorage.getItem(k); } catch(e){}
+      if (!seen) savePics(it.id, false);
+    }
+  });
+}
+
+/* ---------- ask Claude about this video ---------- */
+var drafts = {};
+function askSection(it){
+  var list = (it.qa || []).map(function(x){
+    var a = x.status === "thinking" ? h("p", {class:"a busy", text:"Thinking… checking your books"})
+      : h("p", {class:"a" + (x.status === "error" ? " bad" : ""), text: x.a || ""});
+    var kids = [h("div", {class:"q"}, [h("b", {text: x.q}), h("button", {class:"x", type:"button", "aria-label":"Remove this answer", text:"×", onclick:function(){ removeQA(it.id, x.id); }})]), a];
+    if (x.status === "error") kids.push(h("button", {class:"btn quiet", type:"button", text:"Try again", onclick:function(){ removeQA(it.id, x.id); ask(it.id, x.q); }}));
+    return h("li", null, kids);
+  });
+  var ta = h("textarea", {class:"askbox", rows:"2", placeholder:"Ask about this video…", "aria-label":"Ask Claude about this video"});
+  ta.value = drafts[it.id] || "";
+  ta.addEventListener("input", function(){ drafts[it.id] = ta.value; grow(ta); });
+  var send = function(){ var q = ta.value.trim(); if (!q) return; drafts[it.id] = ""; ta.value = ""; ask(it.id, q); };
+  ta.addEventListener("keydown", function(e){ if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } });
+  return h("section", {class:"sec ask"}, [
+    h("h3", null, [h("span", {text:"Ask Claude"})]),
+    list.length ? h("ul", {class:"qa"}, list) : null,
+    h("div", {class:"askrow"}, [ta, h("button", {class:"btn primary", type:"button", text:"Ask", onclick: send})])
+  ]);
+}
+function ask(id, q){
+  var temp = {id: "tmp-" + Date.now(), q: q, status: "thinking"};
+  var it = ideas.get(id); setIdea(id, {qa: ((it && it.qa) || []).concat([temp])});
+  soon();
+  api("/api/ask", {id: id, question: q}).then(function(r){
+    var cur = ideas.get(id); if (!cur) return;
+    setIdea(id, {qa: (cur.qa || []).filter(function(x){ return x.id !== temp.id && x.id !== r.item.id; }).concat([r.item])});
+  }, function(){
+    var cur = ideas.get(id); if (!cur) return;
+    setIdea(id, {qa: (cur.qa || []).map(function(x){ return x.id === temp.id ? Object.assign({}, x, {status:"error", a:"Couldn't reach Claude. Tap Try again."}) : x; })});
+  });
+}
+function removeQA(id, qaId){
+  var cur = ideas.get(id); if (!cur) return;
+  setIdea(id, {qa: (cur.qa || []).filter(function(x){ return x.id !== qaId; })});
+  if (qaId.indexOf("tmp-") !== 0) api("/api/ask", {id: id, remove: qaId}).catch(function(){ toast("Couldn't remove it. Try again."); });
+}
+// While something is being made, check back more often.
+var soonTimer;
+function busyNow(){ var b = false; ideas.forEach(function(it){ if ((it.pics && /planning|queued|making/.test(it.pics.status)) || (it.qa || []).some(function(x){ return x.status === "thinking"; })) b = true; }); return b; }
+function soon(){ clearTimeout(soonTimer); soonTimer = setTimeout(function(){ if (store && store.pull) store.pull(); if (busyNow()) soon(); }, 5000); }
 
 function copyOutline(id){
   var it = ideas.get(id); if (!it) return;
@@ -528,8 +663,15 @@ $("book").addEventListener("change", renderList);
 function onRows(rows){
   loaded = true;
   var next = new Map();
-  rows.forEach(function(r){ next.set(r.id, pending[r.id] ? Object.assign({}, r, pending[r.id]) : r); });
+  rows.forEach(function(r){
+    var row = pending[r.id] ? Object.assign({}, r, pending[r.id]) : r, old = ideas.get(r.id);
+    // a question still on its way to the server stays visible
+    var temps = old && (old.qa || []).filter(function(x){ return x.id.indexOf("tmp-") === 0 && !(row.qa || []).some(function(y){ return y.q === x.q; }); });
+    if (temps && temps.length) row = Object.assign({}, row, {qa: (row.qa || []).concat(temps)});
+    next.set(r.id, row);
+  });
   ideas = next;
+  autoSave(); if (busyNow()) soon();
   if (selected && !ideas.has(selected)) selected = null;
   renderList();
   var box = $("detail"), busy = box.contains(document.activeElement) && document.activeElement !== document.body;
@@ -581,6 +723,7 @@ function apiStore(key){
       try { var saved = JSON.parse(localStorage.getItem(CACHE) || "null"); if (Array.isArray(saved) && saved.length) next(saved); } catch(e){}
       pull(); tick();
     },
+    pull: pull,
     create: function(id, data){ return send("create", id, data); },
     update: function(id, patch){ return send("update", id, patch); },
     remove: function(id){ return send("remove", id); }
