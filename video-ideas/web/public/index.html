@@ -38,6 +38,7 @@
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;
   -webkit-text-size-adjust:100%}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+body{margin:0}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -55,7 +56,7 @@ button{cursor:pointer}
 .btn.quiet{background:transparent}
 .btn.danger{color:var(--bad)}
 
-.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);
+.bar{
   display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-block:12px;margin-top:6px}
 .tabs{display:flex;background:var(--sunk);border-radius:999px;padding:3px;flex:none}
 .tabs button{border:0;background:transparent;border-radius:999px;padding:8px 14px;font-weight:600;color:var(--muted);font-size:.92rem}
@@ -85,6 +86,11 @@ button{cursor:pointer}
 .check{border:1.5px solid var(--line);background:transparent;border-radius:999px;width:34px;height:34px;display:grid;place-items:center;color:var(--muted);margin-top:1px}
 .check svg{width:16px;height:16px}
 .check.on{background:var(--good);border-color:var(--good);color:var(--surface)}
+.acts{display:flex;gap:8px;align-items:center}
+.heart{border:1.5px solid var(--line);background:transparent;border-radius:999px;width:34px;height:34px;display:grid;place-items:center;color:var(--muted);margin-top:1px}
+.heart svg{width:17px;height:17px;fill:none}
+.heart.on{border-color:#e0457b;color:#e0457b;background:rgba(224,69,123,.10)}
+.heart.on svg{fill:currentColor}
 
 .empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:28px 18px;color:var(--muted);text-align:center}
 .empty b{display:block;color:var(--fg);font-family:var(--display);font-size:1.1rem;margin-bottom:4px}
@@ -132,6 +138,22 @@ button{cursor:pointer}
 }
 @media (max-width:959px){ html.locked,html.locked body{overflow:hidden} }
 @media (prefers-reduced-motion:no-preference){ .card{transition:border-color .15s} }
+
+/* Phone: cards run edge to edge, the check sits bottom right, and tap-and-hold anywhere moves a card. */
+@media (max-width:959px){
+  #list{margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));gap:6px}
+  .card{display:block;position:relative;border-radius:0;border-inline:0;
+    padding:14px max(18px,env(safe-area-inset-right,0px)) 12px max(18px,env(safe-area-inset-left,0px))}
+  .card.sel{box-shadow:none}
+  .card .tags{min-height:34px;align-items:center;padding-right:92px;margin-top:10px}
+  .card .acts{position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:12px}
+  .card .acts button{margin:0}
+}
+@media (hover:none),(pointer:coarse){
+  .card .handle{display:none}
+  .card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .card.chosen{box-shadow:0 10px 28px rgba(20,14,60,.22);transform:scale(1.015);transition:transform .15s,box-shadow .15s;z-index:2}
+}
 </style>
 
 <div class="app">
@@ -190,6 +212,7 @@ function h(tag, attrs, kids){
   return el;
 }
 var ICON_GRIP = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="7" cy="5" r="1.6"/><circle cx="13" cy="5" r="1.6"/><circle cx="7" cy="10" r="1.6"/><circle cx="13" cy="10" r="1.6"/><circle cx="7" cy="15" r="1.6"/><circle cx="13" cy="15" r="1.6"/></svg>';
+var ICON_HEART = '<svg viewBox="0 0 20 20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M10 16.6s-6.4-3.9-6.4-8.6A3.6 3.6 0 0 1 10 5.9a3.6 3.6 0 0 1 6.4 2.1c0 4.7-6.4 8.6-6.4 8.6z"/></svg>';
 var ICON_CHECK = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.6 3.6 7.4-8"/></svg>';
 
 function authorClass(a){
@@ -296,9 +319,14 @@ function renderList(){
           i.series ? h("span", {class:"tag series", text: i.series}) : null
         ])
       ]),
-      h("button", {class:"check" + (i.posted ? " on" : ""), type:"button", title: i.posted ? "Move back to To film" : "Mark as posted",
-        "aria-label": i.posted ? "Move back to To film" : "Mark as posted", html: ICON_CHECK,
-        onclick:function(){ setPosted(i.id, !i.posted); }})
+      h("div", {class:"acts"}, [
+        h("button", {class:"heart" + (i.loved ? " on" : ""), type:"button", title: i.loved ? "Remove heart" : "Heart it and move it to the top",
+          "aria-label": i.loved ? "Remove heart" : "Heart it and move it to the top", "aria-pressed": i.loved ? "true" : "false", html: ICON_HEART,
+          onclick:function(){ setLoved(i.id, !i.loved); }}),
+        h("button", {class:"check" + (i.posted ? " on" : ""), type:"button", title: i.posted ? "Move back to To film" : "Mark as posted",
+          "aria-label": i.posted ? "Move back to To film" : "Mark as posted", html: ICON_CHECK,
+          onclick:function(){ setPosted(i.id, !i.posted); }})
+      ])
     ]);
     list.appendChild(li);
   });
@@ -314,6 +342,21 @@ function renderList(){
   }
 }
 
+function setLoved(id, on, restoreOrder){
+  var it = ideas.get(id); if (!it) return;
+  var prevOrder = it.order || 0, patch = {loved: on};
+  if (on && restoreOrder == null){
+    var top = Infinity; ideas.forEach(function(x){ if (x.id !== id) top = Math.min(top, x.order || 0); });
+    patch.order = (top === Infinity ? 0 : top) - 1;
+  }
+  if (restoreOrder != null) patch.order = restoreOrder;
+  save(id, patch, true);
+  renderList(); if (selected === id) renderDetail();
+  if (restoreOrder != null) return;
+  if (on){ window.scrollTo({top:0, behavior:"smooth"}); toast("Hearted and moved to the top", function(){ setLoved(id, false, prevOrder); }); }
+  else toast("Heart removed");
+}
+
 function setPosted(id, on){
   var it = ideas.get(id); if (!it) return;
   save(id, {posted: on, postedAt: on ? new Date().toISOString() : null}, true);
@@ -321,8 +364,12 @@ function setPosted(id, on){
   toast(on ? "Moved to Posted" : "Moved back to To film", function(){ setPosted(id, !on); });
 }
 
-if (window.Sortable) Sortable.create($("list"), {
-  handle: ".handle", animation: 150, ghostClass: "ghost",
+// Touch screens: press and hold anywhere on a card to move it. Mouse: drag the dotted handle.
+var TOUCH = window.matchMedia && matchMedia("(hover:none),(pointer:coarse)").matches;
+if (window.Sortable) Sortable.create($("list"), Object.assign(TOUCH ? {
+    delay: 300, delayOnTouchOnly: true, touchStartThreshold: 6, filter: ".check,.heart", preventOnFilter: false
+  } : { handle: ".handle" }, {
+  animation: 150, ghostClass: "ghost", chosenClass: "chosen",
   onStart: function(){ dragging = true; },
   onEnd: function(ev){
     dragging = false;
@@ -333,7 +380,7 @@ if (window.Sortable) Sortable.create($("list"), {
     if (ev.oldIndex !== ev.newIndex) save(id, {order: order}, true);
     renderList();
   }
-});
+}));
 
 /* ---------- detail ---------- */
 function grow(t){ t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
