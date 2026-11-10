@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Video Ideas</title>
+<title>Soul Video Idea Library</title>
 <link rel="icon" href="/icon.png">
 <link rel="apple-touch-icon" href="/icon.png">
 </head>
@@ -128,6 +128,7 @@ button{cursor:pointer}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:40;
   background:var(--fg);color:var(--bg);border-radius:999px;padding:10px 16px;font-weight:600;font-size:.9rem;display:flex;gap:12px;align-items:center;max-width:calc(100% - 32px)}
 #toast button{all:unset;cursor:pointer;text-decoration:underline}
+[hidden]{display:none !important}
 
 @media (min-width:960px){
   .layout{grid-template-columns:minmax(0,430px) minmax(0,1fr)}
@@ -152,7 +153,8 @@ button{cursor:pointer}
 @media (hover:none),(pointer:coarse){
   .card .handle{display:none}
   .card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-  .card.chosen{box-shadow:0 10px 28px rgba(20,14,60,.22);transform:scale(1.015);transition:transform .15s,box-shadow .15s;z-index:2}
+  .card.chosen{background:var(--sunk)}
+  .card.lifted{opacity:1 !important;border-radius:14px;border:1px solid var(--line);box-shadow:0 14px 34px rgba(20,14,60,.28)}
 }
 </style>
 
@@ -160,10 +162,9 @@ button{cursor:pointer}
   <header class="top">
     <img class="logo" alt="" src="data:image/jpeg;base64,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">
     <div class="grow">
-      <h1>Video Ideas</h1>
+      <h1>Soul Video Idea Library</h1>
       <p id="sub">Loading your list…</p>
     </div>
-    <button class="btn primary" id="add" type="button">New idea</button>
   </header>
 
   <div class="bar">
@@ -338,7 +339,7 @@ function renderList(){
     var filtered = $("q").value.trim() || $("book").value;
     if (filtered) empty.appendChild(h("span", {text:"Nothing matches that search."}));
     else if (tab === "posted"){ empty.appendChild(h("b", {text:"Nothing posted yet"})); empty.appendChild(h("span", {text:"Tap the check on an idea once the video is live and it moves here."})); }
-    else { empty.appendChild(h("b", {text:"No ideas waiting"})); empty.appendChild(h("span", {text:"Tap New idea to add one, or ask Claude for a fresh batch from your books."})); }
+    else { empty.appendChild(h("b", {text:"No ideas waiting"})); empty.appendChild(h("span", {text:"Ask Claude for a fresh batch from your books."})); }
   }
 }
 
@@ -367,12 +368,15 @@ function setPosted(id, on){
 // Touch screens: press and hold anywhere on a card to move it. Mouse: drag the dotted handle.
 var TOUCH = window.matchMedia && matchMedia("(hover:none),(pointer:coarse)").matches;
 if (window.Sortable) Sortable.create($("list"), Object.assign(TOUCH ? {
-    delay: 300, delayOnTouchOnly: true, touchStartThreshold: 6, filter: ".check,.heart", preventOnFilter: false
+    delay: 260, delayOnTouchOnly: true, touchStartThreshold: 5, filter: ".check,.heart", preventOnFilter: false,
+    // Sortable's own touch dragging is smooth on iPhone; the browser's built-in drag is sluggish there.
+    forceFallback: true, fallbackTolerance: 2, fallbackOnBody: true, dragClass: "lifted",
+    scroll: true, bubbleScroll: true, scrollSensitivity: 110, scrollSpeed: 18
   } : { handle: ".handle" }, {
   animation: 150, ghostClass: "ghost", chosenClass: "chosen",
-  onStart: function(){ dragging = true; },
+  onStart: function(){ dragging = true; document.documentElement.classList.add("drag-now"); },
   onEnd: function(ev){
-    dragging = false;
+    dragging = false; document.documentElement.classList.remove("drag-now");
     var el = ev.item, id = el.getAttribute("data-id");
     var prev = el.previousElementSibling && ideas.get(el.previousElementSibling.getAttribute("data-id"));
     var next = el.nextElementSibling && ideas.get(el.nextElementSibling.getAttribute("data-id"));
@@ -478,8 +482,19 @@ function renderDetail(){
   Array.prototype.forEach.call(box.querySelectorAll("textarea"), grow);
   box.scrollTop = 0;
 }
-function openIdea(id){ flushAll(); selected = id; renderList(); renderDetail(); }
-function closeIdea(){ flushAll(); selected = null; renderList(); renderDetail(); }
+// Opening an idea adds a history step, so the phone's swipe-from-the-left-edge (and Back) returns to the list.
+function openIdea(id){
+  flushAll();
+  if (history.state && history.state.idea) history.replaceState({idea:id}, ""); else history.pushState({idea:id}, "");
+  selected = id; renderList(); renderDetail();
+}
+function showList(){ flushAll(); selected = null; renderList(); renderDetail(); }
+function closeIdea(){ if (history.state && history.state.idea) history.back(); else showList(); }
+window.addEventListener("popstate", function(e){
+  var id = e.state && e.state.idea;
+  if (id && ideas.has(id)){ flushAll(); selected = id; renderList(); renderDetail(); }
+  else if (selected) showList();
+});
 
 function copyOutline(id){
   var it = ideas.get(id); if (!it) return;
@@ -508,16 +523,6 @@ $("tab-todo").addEventListener("click", function(){ setTab("todo"); });
 $("tab-posted").addEventListener("click", function(){ setTab("posted"); });
 $("q").addEventListener("input", renderList);
 $("book").addEventListener("change", renderList);
-$("add").addEventListener("click", function(){
-  if (!store) return;
-  var id = "idea-" + Date.now().toString(36), first = sorted()[0];
-  var data = {title:"", desc:"", book:"", author:"", loc:"", series:"", points:[""], hooks:["","","","",""], notes:"", posted:false,
-    order: first ? (first.order||0) - 1 : 0, createdAt: new Date().toISOString(), factKey:""};
-  ideas.set(id, Object.assign({id:id}, data));
-  chains[id] = store.create(id, data).catch(function(){ toast("Couldn't add the idea. Try again."); });
-  setTab("todo"); openIdea(id);
-  var t = $("f-title"); if (t) t.focus();
-});
 
 /* ---------- boot ---------- */
 function onRows(rows){

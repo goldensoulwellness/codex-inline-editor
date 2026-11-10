@@ -18,7 +18,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.soulexperience.videoideas
         PRODUCT_NAME: Video Ideas
-        INFOPLIST_KEY_CFBundleDisplayName: Video Ideas
+        INFOPLIST_KEY_CFBundleDisplayName: Soul Videos
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
